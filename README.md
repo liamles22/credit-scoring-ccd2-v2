@@ -1,5 +1,7 @@
 # Credit Scoring: Development and Validation
 
+**Part II — EU consumer credit:** [CCD2 evidence-based gap assessment](reports/ccd2_gap_assessment.md) maps existing research to selected requirements and identifies what cannot be verified from US loan data. It is not a compliance certification.
+
 🇬🇧 English · 🇷🇺 [Русский](README.ru.md)
 
 A probability-of-default (PD) model for Lending Club consumer loans, **built and then
