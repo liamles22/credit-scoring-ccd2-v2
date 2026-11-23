@@ -60,7 +60,7 @@ def summarize(frame: pd.DataFrame, scenario: Scenario, max_pd: float) -> pd.Data
     masks = policy_masks(frame, scenario, max_pd)
     valid = masks["eligible"]
     target = pd.to_numeric(frame["default_12m"], errors="coerce")
-    if not target.dropna().isin([0, 1]).all():
+    if (frame["default_12m"].notna() & target.isna()).any() or not target.dropna().isin([0, 1]).all():
         raise ValueError("default_12m must be 0, 1, or missing")
     rows = []
     for name in ("pd_only", "affordability_only", "combined"):

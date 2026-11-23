@@ -31,3 +31,10 @@ def test_invalid_scenario_and_threshold():
     frame = pd.DataFrame({"annual_inc": [12000], "dti": [0], "proposed_payment": [0], "pd": [0.1]})
     with pytest.raises(ValueError):
         policy_masks(frame, Scenario("base", 0.8, 0.5), 2)
+
+
+def test_invalid_outcome_is_not_silently_treated_as_missing():
+    frame = pd.DataFrame({"annual_inc": [12000], "dti": [0], "proposed_payment": [0],
+                          "pd": [0.1], "default_12m": ["unknown label"]})
+    with pytest.raises(ValueError, match="default_12m"):
+        summarize(frame, Scenario("base", 0.8, 0.5), 0.2)
