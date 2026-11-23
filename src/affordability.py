@@ -71,5 +71,8 @@ def summarize(frame: pd.DataFrame, scenario: Scenario, max_pd: float) -> pd.Data
                      "approved": int(approved.sum()),
                      "approval_rate": approved.sum() / valid.sum() if valid.sum() else np.nan,
                      "observed_outcomes": int(observed.sum()),
+                     "missing_outcomes": int((approved & target.isna()).sum()),
+                     "outcome_coverage": observed.sum() / approved.sum() if approved.sum() else np.nan,
+                     "observed_defaults": int(target[observed].sum()),
                      "default_rate": target[observed].mean()})
     return pd.DataFrame(rows)

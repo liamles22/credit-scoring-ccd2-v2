@@ -38,3 +38,18 @@ def test_invalid_outcome_is_not_silently_treated_as_missing():
                           "pd": [0.1], "default_12m": ["unknown label"]})
     with pytest.raises(ValueError, match="default_12m"):
         summarize(frame, Scenario("base", 0.8, 0.5), 0.2)
+
+
+def test_outcome_coverage_and_empty_approval():
+    frame = pd.DataFrame({"annual_inc": [12000, 12000], "dti": [0, 0],
+                          "proposed_payment": [0, 0], "pd": [0.1, 0.1],
+                          "default_12m": [1, np.nan]})
+    scenario = Scenario("base", 0.8, 0.5)
+    result = summarize(frame, scenario, 0.2).set_index("policy")
+    assert result.loc["pd_only", "observed_defaults"] == 1
+    assert result.loc["pd_only", "missing_outcomes"] == 1
+    assert result.loc["pd_only", "outcome_coverage"] == 0.5
+    assert result.loc["pd_only", "default_rate"] == 1
+    empty = summarize(frame, scenario, 0.05).set_index("policy")
+    assert np.isnan(empty.loc["pd_only", "outcome_coverage"])
+    assert np.isnan(empty.loc["pd_only", "default_rate"])

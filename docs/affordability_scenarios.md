@@ -12,6 +12,8 @@ The Lending Club DTI definition excludes mortgages and the new loan; it is not a
 
 Invalid or missing income, debt, payment or PD are excluded from **all** policies and reported. Missing outcomes remain excluded from default-rate denominators, with counts shown. The combined rule is the intersection of the other rules, so it generally approves fewer cases; report both approval and default rates rather than presenting this as an equal-approval comparison. A zero approval group has an undefined default rate.
 
+The output reports observed defaults, missing outcomes and outcome coverage for each approved group. Coverage is observed outcomes divided by approved loans; it is undefined when no loans are approved. The default rate uses observed outcomes only and may be biased if outcomes are missing non-randomly. Report coverage alongside it and investigate missingness before comparing policies.
+
 Only funded applicants have outcomes. Results cannot establish what would have happened to rejected applicants, prove causal effects or measure population-level approval. Data are US historical loans and cannot establish performance for EU consumers or BNPL. The predefined stress values do not represent estimated real-world probabilities. The scenario does not generate income paths or a probability of financial distress.
 
 ## Run
