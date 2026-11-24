@@ -4,7 +4,6 @@ import pandas as pd
 import pytest
 
 from src.data import PROJECT_ROOT, TARGET
-from src.features_config import CATEGORICAL
 from src.metrics import gini
 from src.scoring import MODEL_NAMES, MODELS
 from src.split import PROCESSED_PATH
@@ -22,7 +21,7 @@ def scored():
     from src.scoring import Models
 
     samples = pd.read_parquet(PROCESSED_PATH, filters=[("sample", "in", ["train", "test"])])
-    models = Models({c: sorted(samples[c].dropna().astype(str).unique()) for c in CATEGORICAL})
+    models = Models()
     test = samples[samples["sample"] == "test"].reset_index(drop=True)
     return models, test, models.predict(test)
 

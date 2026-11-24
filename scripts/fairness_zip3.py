@@ -11,7 +11,6 @@ import pandas as pd
 from src.data import PROJECT_ROOT, TARGET
 from src.fairness import (GROUPS, adverse_impact, approve_lowest, area_quintiles, area_sums,
                           bootstrap_area_weights, group_rates, lc_zip3, zip3_composition)
-from src.features_config import CATEGORICAL
 from src.scoring import Models
 from src.split import PROCESSED_PATH
 
@@ -34,8 +33,7 @@ def main():
     shares = zip3_composition(pd.read_csv(ACS, dtype={"zcta": str}))
 
     d = pd.read_parquet(PROCESSED_PATH, filters=[("sample", "in", ["train", "oot"])])
-    cats = {c: sorted(d.loc[d["sample"] == "train", c].dropna().astype(str).unique()) for c in CATEGORICAL}
-    models = Models(cats)
+    models = Models()
     train, oot = d[d["sample"] == "train"], d[d["sample"] == "oot"].reset_index(drop=True)
     cutoff = np.quantile(models.predict(train)[CHAMPION], APPROVAL_SHARE)
     pd_oot = models.predict(oot)

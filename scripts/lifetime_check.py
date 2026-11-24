@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 
 from src.data import PROJECT_ROOT, TARGET, TARGET_LIFETIME
-from src.features_config import CATEGORICAL
 from src.metrics import gini
 from src.scoring import Models
 from src.split import PROCESSED_PATH
@@ -23,7 +22,7 @@ def main():
     assert set(samples["sample"].unique()) == {"train", "test"}
     test = samples[(samples["sample"] == "test") & (samples["issue_d"] < "2016-01-01")]
     test = test[test[TARGET_LIFETIME].notna()]
-    models = Models({c: sorted(samples[c].dropna().astype(str).unique()) for c in CATEGORICAL})
+    models = Models()
     pred = models.predict(test)
     y12, life = test[TARGET].to_numpy(), test[TARGET_LIFETIME].to_numpy()
     bench = test["sub_grade"].astype(str).rank(method="dense").to_numpy()

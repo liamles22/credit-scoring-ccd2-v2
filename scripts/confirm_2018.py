@@ -11,10 +11,9 @@ import numpy as np
 import pandas as pd
 
 from src.data import PROJECT_ROOT, TARGET, load_interim, make_modelling_base
-from src.features_config import CATEGORICAL
 from src.metrics import gini, hosmer_lemeshow
 from src.scoring import Models
-from src.split import PROCESSED_PATH, select_scope
+from src.split import select_scope
 
 OUT = PROJECT_ROOT / "reports" / "tables" / "confirm_2018.csv"
 METHODS = {"LightGBM monotone": "intercept shift", "CatBoost monotone": "logistic", "Scorecard": "logistic"}
@@ -29,8 +28,7 @@ def main():
     print(f"Cohort: {len(cohort):,} loans", flush=True)
     cohort["credit_hist_months"] = ((cohort["issue_d"].dt.year - cohort["earliest_cr_line"].dt.year) * 12
                                     + cohort["issue_d"].dt.month - cohort["earliest_cr_line"].dt.month)
-    ref = pd.read_parquet(PROCESSED_PATH, columns=CATEGORICAL)
-    models = Models({c: sorted(ref[c].dropna().astype(str).unique()) for c in CATEGORICAL})
+    models = Models()
     pred = models.predict(cohort)
     with open(PROJECT_ROOT / "models" / "recalibration.pkl", "rb") as fh:
         calibrators = pickle.load(fh)

@@ -266,6 +266,8 @@ conda activate ml
 ```
 
 Re-run all notebooks and scripts (needs the raw CSV; retrains the models): `python -m scripts.run_notebooks`.
+The committed metrics were produced before LightGBM category fitting was restricted to model-fit rows.
+Run the pipeline to measure the effect on the reported OOT results.
 The tests also run on GitHub Actions.
 
 ## Tests

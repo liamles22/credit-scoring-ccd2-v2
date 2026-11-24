@@ -53,7 +53,7 @@ def main():
     by_year = d.groupby("issue_year").agg(loans=("early_repaid", "size"), early_repaid_share=("early_repaid", "mean"))
     by_year["share_of_good"] = d[d[TARGET] == 0].groupby("issue_year")["early_repaid"].mean()
     by_year.round(4).to_csv(TABLES / "prepayment_by_year.csv")
-    champion = Models(cats).predict(test)["LightGBM monotone"]
+    champion = Models().predict(test)["LightGBM monotone"]
     deciles = pd.qcut(pd.Series(champion).rank(method="first"), 10, labels=False) + 1
     by_risk = pd.DataFrame({"decile": deciles.to_numpy(), "early": early, "y": y}).groupby("decile").agg(
         early_repaid_share=("early", "mean"), default_rate=("y", "mean"))
