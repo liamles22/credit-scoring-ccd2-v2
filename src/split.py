@@ -7,7 +7,7 @@ so that the out-of-time Gini stays an honest estimate.
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from src.data import PROJECT_ROOT, TARGET
+from src.data import BUFFER_MONTHS, HORIZON_MONTHS, PROJECT_ROOT, TARGET, observed_long_enough
 
 OOT = ("2017-01", "2017-12")
 WINDOW_VALIDATION = ("2016-07", "2016-12")  # used only to choose the training window
@@ -61,3 +61,24 @@ def final_split(df: pd.DataFrame, train_window, test_share: float = TEST_SHARE,
     sample[issued_between(df, OOT)] = "oot"
     out = df.assign(sample=sample)
     return out[out["sample"].notna()].reset_index(drop=True)
+
+
+def as_of_masks(df: pd.DataFrame, as_of: pd.Timestamp) -> dict[str, pd.Series]:
+    """Partition a backtest at a month start using only mature development labels.
+
+    The latest three eligible issue months are for calibration, the previous
+    three are for early stopping, and all earlier eligible months are for fit.
+    Evaluation covers three issue months starting at the deployment date.
+    """
+    as_of = pd.Timestamp(as_of)
+    issued = df["issue_d"]
+    latest_mature_issue = as_of - pd.DateOffset(months=HORIZON_MONTHS + BUFFER_MONTHS)
+    calibration_start = latest_mature_issue - pd.DateOffset(months=2)
+    stop_start = calibration_start - pd.DateOffset(months=3)
+    mature = observed_long_enough(df, as_of)
+    return {
+        "fit": mature & issued.lt(stop_start),
+        "early_stop": mature & issued.ge(stop_start) & issued.lt(calibration_start),
+        "calibration": mature & issued.ge(calibration_start),
+        "evaluation": issued.ge(as_of) & issued.lt(as_of + pd.DateOffset(months=3)),
+    }

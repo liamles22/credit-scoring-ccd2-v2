@@ -266,8 +266,11 @@ conda activate ml
 ```
 
 Re-run all notebooks and scripts (needs the raw CSV; retrains the models): `python -m scripts.run_notebooks`.
-The committed metrics were produced before LightGBM category fitting was restricted to model-fit rows.
+The original champion metrics were produced before LightGBM category fitting was restricted to model-fit rows.
 Run the pipeline to measure the effect on the reported OOT results.
+Run the [2017 deployment-date backtest](reports/validation_report.md#59-deployment-date-backtest) after notebook 02
+with `python -m scripts.as_of_backtest`.
+
 The tests also run on GitHub Actions.
 
 ## Tests

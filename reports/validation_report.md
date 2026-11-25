@@ -259,6 +259,38 @@ from the period, and neither recalibration nor regime-only training fixed it. It
 risk more in areas with a higher minority share. The verdict stays
 "conditional champion, for ranking only, alongside the grade".
 
+### 5.9 Deployment-date backtest
+
+The original split compares models across origination years. To simulate a quarterly deployment in
+2017, run `python -m scripts.as_of_backtest` after notebook 02. At each quarter start, only loans whose
+origination month plus 12 months and the three-month buffer falls on or before that date can supply
+development labels. The three latest eligible origination months are held out for an intercept-shift
+calibrator, the preceding three for early stopping, and earlier eligible months for model fitting.
+Category levels are learned on the fit rows. The model and calibrator stay fixed while scoring the
+next three issue months.
+
+This exploratory check uses a plain LightGBM with fixed parameters and AUC early stopping on the
+eligible cohort. It reuses the candidate feature list but does not import the champion's fitted
+parameters, monotone directions or calibration. Differences from the original champion can reflect
+both the development design and the model specification. The benchmark is Lending Club sub-grade
+on the same quarterly loans.
+
+Origination dates have monthly precision, and targets come from the March 2019 snapshot. The cutoff
+restricts which vintages could have reached maturity by each deployment date. Historical data
+snapshots would be needed to verify the true availability and values of those labels at the time.
+
+| Deployment | Last mature issue month | Loans scored | Gini | Sub-grade Gini | Difference | Observed / predicted, raw → calibrated |
+|---|---|---:|---:|---:|---:|---:|
+| 2017-01-01 | 2015-10 | 69,778 | 0.377 | 0.420 | -0.043 | 1.429 → 1.283 |
+| 2017-04-01 | 2016-01 | 73,380 | 0.381 | 0.403 | -0.022 | 1.487 → 1.198 |
+| 2017-07-01 | 2016-04 | 80,528 | 0.392 | 0.409 | -0.016 | 1.410 → 1.033 |
+| 2017-10-01 | 2016-07 | 72,798 | 0.408 | 0.412 | -0.004 | 1.082 → 0.999 |
+
+Across 296,484 loans this LightGBM ranked below sub-grade in all four quarters. The Gini deficit
+narrowed from 0.043 in Q1 to 0.004 in Q4. The intercept shift moved the observed / predicted ratio
+closer to one in every quarter, although calibrated PD still underestimated the observed default
+rate in Q1 and Q2. See the [quarterly results](tables/as_of_backtest_2017.csv) for the full metrics.
+
 ## 6. Success criteria
 
 | Criterion | Result | Status |

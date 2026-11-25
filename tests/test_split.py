@@ -1,9 +1,10 @@
 """Time-based split (src/split.py)."""
 import numpy as np
 import pandas as pd
+import pytest
 
 from src.data import TARGET
-from src.split import OOT, final_split, issued_between, select_scope, shift_to_end
+from src.split import OOT, as_of_masks, final_split, issued_between, select_scope, shift_to_end
 
 
 def monthly_loans(start="2012-01", end="2018-06", per_month=50, seed=0):
@@ -51,3 +52,28 @@ def test_test_share_and_stratification():
 def test_select_scope_keeps_individual_applications():
     df = pd.DataFrame({"application_type": ["Individual", "Joint App", "Individual"]})
     assert len(select_scope(df)) == 2
+
+
+@pytest.mark.parametrize(
+    ("as_of", "fit_end", "stop_start", "stop_end", "cal_start", "cal_end", "eval_end"),
+    [
+        ("2017-01", "2015-04", "2015-05", "2015-07", "2015-08", "2015-10", "2017-03"),
+        ("2017-04", "2015-07", "2015-08", "2015-10", "2015-11", "2016-01", "2017-06"),
+    ],
+)
+def test_as_of_split_reserves_mature_calibration_and_early_stop(
+    as_of, fit_end, stop_start, stop_end, cal_start, cal_end, eval_end
+):
+    loans = monthly_loans(start="2014-01", end="2017-10", per_month=1)
+    masks = as_of_masks(loans, pd.Timestamp(as_of))
+    fit, stop, cal, evaluation = (loans.loc[masks[name], "issue_d"]
+                                  for name in ("fit", "early_stop", "calibration", "evaluation"))
+
+    assert fit.max() == pd.Timestamp(fit_end)
+    assert stop.tolist() == list(pd.date_range(stop_start, stop_end, freq="MS"))
+    assert cal.tolist() == list(pd.date_range(cal_start, cal_end, freq="MS"))
+    assert evaluation.tolist() == list(pd.date_range(as_of, eval_end, freq="MS"))
+    assert pd.DataFrame(masks).sum(axis=1).le(1).all()
+    immature = loans["issue_d"].between(pd.Timestamp(cal_end) + pd.DateOffset(months=1),
+                                       pd.Timestamp(as_of), inclusive="left")
+    assert not pd.DataFrame(masks).loc[immature].any().any()
