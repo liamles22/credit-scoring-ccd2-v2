@@ -291,6 +291,46 @@ narrowed from 0.043 in Q1 to 0.004 in Q4. The intercept shift moved the observed
 closer to one in every quarter, although calibrated PD still underestimated the observed default
 rate in Q1 and Q2. See the [quarterly results](tables/as_of_backtest_2017.csv) for the full metrics.
 
+### 5.10 Unresolved labels and late status
+
+The current 12-month proxy leaves the outcome missing if the status is unrecognised or payment
+inputs required for reconstructed default timing are missing or invalid. Zero payments are valid
+when recorded as zero. `Late (31-120 days)` spans both sides of the 90-day threshold and is missing by
+default for both the 12-month and lifetime targets. Unresolved 12-month rows are counted before
+training and excluded from supervised splits.
+
+Run `python -m scripts.target_sensitivity` after notebook 01. The audit covers mature, individual,
+36-month loans in the development and OOT issue months. It reports counts and reasons by issue
+month, then refits and recalibrates the models from section 5.9 under three 12-month policies.
+
+| Policy | Treatment of `Late (31-120 days)` |
+|---|---|
+| `unknown` | Exclude unresolved cases. This is the default used for modelling. |
+| `default` | Treat the status as a default candidate and infer whether it fell within 12 months. |
+| `nondefault` | Treat it as a nondefault for the 12-month target. |
+
+Rows with invalid timing inputs or unknown statuses stay unresolved in every scenario. The last
+two policies evaluate the same rows. The default modelling policy evaluates fewer rows, so
+its metrics also reflect the change in sample composition. The original validation tables retain
+their historical targets and results.
+
+Of 1,119,563 loans, 7,499 (0.67%) are unresolved under the default modelling policy. All have the
+ambiguous late status. In OOT 2017, that accounts for 4,656 of 296,484 loans (1.57%). Both policies
+that retain them give the same labels because every reconstructed default month for these loans
+falls after month 12. Exclusion keeps the same 11,978 OOT defaults and raises the observed rate
+from 4.04% to 4.10%.
+
+| 2017 quarter | OOT loans excluded | Gini difference vs sub-grade, exclude | Gini difference vs sub-grade, retain |
+|---|---:|---:|---:|
+| Q1 | 942 | -0.0428 | -0.0427 |
+| Q2 | 1,119 | -0.0222 | -0.0219 |
+| Q3 | 1,371 | -0.0205 | -0.0163 |
+| Q4 | 1,224 | +0.0005 | -0.0043 |
+
+The first three quarters remain below sub-grade with any policy. The tiny Q4 lead after exclusion
+is a point estimate on a changed evaluation sample. The [monthly audit](tables/target_label_coverage.csv)
+and [scenario results](tables/target_late_sensitivity.csv) include the underlying counts and metrics.
+
 ## 6. Success criteria
 
 | Criterion | Result | Status |

@@ -7,7 +7,7 @@ so that the out-of-time Gini stays an honest estimate.
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from src.data import BUFFER_MONTHS, HORIZON_MONTHS, PROJECT_ROOT, TARGET, observed_long_enough
+from src.data import BUFFER_MONTHS, HORIZON_MONTHS, PROJECT_ROOT, TARGET, labelled_loans, observed_long_enough
 
 OOT = ("2017-01", "2017-12")
 WINDOW_VALIDATION = ("2016-07", "2016-12")  # used only to choose the training window
@@ -49,8 +49,9 @@ def final_split(df: pd.DataFrame, train_window, test_share: float = TEST_SHARE,
                 seed: int = SEED) -> pd.DataFrame:
     """Label loans as train / test (random, stratified, inside the window) or oot.
 
-    Loans outside the training window and the out-of-time year are dropped.
+    Drop unresolved outcomes and loans outside the development and OOT windows.
     """
+    df = labelled_loans(df)
     in_window = df[issued_between(df, train_window)]
     train_idx, test_idx = train_test_split(
         in_window.index, test_size=test_share, stratify=in_window[TARGET], random_state=seed

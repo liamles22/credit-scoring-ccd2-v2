@@ -1,9 +1,11 @@
 """12-month target reconstruction (src/data.py)."""
 import numpy as np
 import pandas as pd
+import pytest
 
-from src.data import (TARGET, TARGET_LIFETIME, add_target_12m, add_target_lifetime,
-                      default_month, months_paid, observed_long_enough, snapshot_date)
+from src.data import (LATE_STATUS, TARGET, TARGET_LIFETIME, TARGET_UNKNOWN_REASON,
+                      add_target_12m, add_target_lifetime, default_month, labelled_loans,
+                      months_paid, observed_long_enough, snapshot_date)
 
 
 def loans(statuses, paid_instalments, installment=100.0):
@@ -62,3 +64,44 @@ def test_observed_long_enough_needs_window_plus_buffer():
     df = pd.DataFrame({"issue_d": pd.to_datetime(["2017-12-01", "2018-01-01"])})
     ok = observed_long_enough(df, pd.Timestamp("2019-03-01"), horizon=12, buffer=3)
     assert ok.tolist() == [True, False]
+
+
+def test_12m_unknown_status_is_not_a_good_outcome():
+    frame = add_target_12m(loans([None, "unexpected", "Current"], [0, 0, 0]))
+
+    assert frame[TARGET].isna().tolist() == [True, True, False]
+    assert frame[TARGET_UNKNOWN_REASON].iloc[:2].tolist() == ["unknown_status", "unknown_status"]
+    assert labelled_loans(frame)[TARGET].tolist() == [0]
+
+
+@pytest.mark.parametrize(("column", "value"), [
+    ("total_rec_prncp", np.nan), ("total_rec_int", np.nan),
+    ("total_rec_prncp", -1), ("total_rec_int", np.inf),
+    ("installment", 0), ("installment", -1), ("installment", np.inf),
+])
+def test_bad_status_requires_valid_payment_inputs(column, value):
+    data = loans(["Charged Off", "Charged Off", "Fully Paid"], [0, 0, 0])
+    data.loc[[0, 2], column] = value
+    frame = add_target_12m(data)
+
+    assert pd.isna(frame.loc[0, TARGET])
+    assert frame.loc[0, TARGET_UNKNOWN_REASON] == "invalid_payment_data"
+    assert frame.loc[1, TARGET] == 1
+    assert frame.loc[2, TARGET] == 0
+
+
+@pytest.mark.parametrize(("policy", "expected"), [
+    ("unknown", [pd.NA, pd.NA, pd.NA]),
+    ("default", [1, 0, pd.NA]),
+    ("nondefault", [0, 0, pd.NA]),
+])
+def test_ambiguous_late_status_scenarios_keep_invalid_inputs_unknown(policy, expected):
+    frame = add_target_lifetime(add_target_12m(
+        loans([LATE_STATUS] * 3, [8, 9, np.nan]), late_policy=policy,
+    ))
+
+    pd.testing.assert_series_equal(frame[TARGET], pd.Series(expected, dtype="Int8", name=TARGET))
+    assert frame.loc[2, TARGET_UNKNOWN_REASON] == "invalid_payment_data"
+    if policy == "unknown":
+        assert frame.loc[0, TARGET_UNKNOWN_REASON] == "ambiguous_late_status"
+    assert frame[TARGET_LIFETIME].isna().all()

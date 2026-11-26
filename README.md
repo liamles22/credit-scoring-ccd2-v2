@@ -66,7 +66,7 @@ and compare the three approaches on performance, stability, calibration and inte
 | Unit | Lending Club loan, **36-month** term |
 | Prediction point | Origination date (`issue_d`) |
 | Horizon | **12 months** from origination (one-year PD, as in Basel / CRR) |
-| Target | `1`: the loan reached **90+ days past due within its first 12 months** (CRR Art. 178 default definition)<br>`0`: everything else, including loans still open and defaults after month 12 |
+| Target | `1`: the loan reached **90+ days past due within its first 12 months** (CRR Art. 178 default definition)<br>`0`: no default indicated within the window by the proxy<br>Missing: the available status or payment inputs leave the outcome unresolved |
 | Sample | 36-month loans issued 2010–2017, individual applications, with the full 12 months observed |
 | Features | Only information available at origination: application, credit history, loan terms |
 | Primary metric | **Gini** on OOT |
@@ -79,9 +79,8 @@ closed loans, and dropping open loans would leave mostly early-closed loans in t
 later years and bias their default rate. With that target the sample would have to
 stop at 2015.
 
-A "default within 12 months" target is known for every loan older than 12 months,
-open ones included. It is also the bank standard: regulatory PD is a one-year
-probability.
+A 12-month target lets the study use mature loans that are still open. The public
+snapshot supports a reconstructed label where the status and relevant payment inputs allow it.
 
 | Issue year (36 m) | Loans | Open | Lifetime DR (closed loans) | 12-month DR |
 |---|---|---|---|---|
@@ -110,6 +109,12 @@ from the last payment date for **96.3%** of defaulted loans. A loan enters the
 sample if `issue_d + 12 months + 3 months buffer` is not later than the snapshot
 (March 2019). The columns that build the target are listed in `TARGET_ONLY_COLS`
 and never become features: `assert_no_leakage` checks this before training.
+
+The current pipeline leaves unknown statuses, invalid payment inputs for default timing, and
+`Late (31-120 days)` unresolved. Those rows are counted in the audit and excluded from model splits.
+The original experiment tables use the earlier target definition. Run
+`python -m scripts.target_sensitivity` after notebook 01 for monthly coverage and a comparison of
+three late-status policies. See the [target sensitivity results](reports/validation_report.md#510-unresolved-labels-and-late-status).
 
 ### Target limitations
 - The target is **reconstructed**, not observed: delinquencies that were later cured

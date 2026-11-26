@@ -77,3 +77,16 @@ def test_as_of_split_reserves_mature_calibration_and_early_stop(
     immature = loans["issue_d"].between(pd.Timestamp(cal_end) + pd.DateOffset(months=1),
                                        pd.Timestamp(as_of), inclusive="left")
     assert not pd.DataFrame(masks).loc[immature].any().any()
+
+
+def test_final_split_uses_only_labelled_loans_including_oot():
+    loans = monthly_loans(per_month=200)
+    loans[TARGET] = loans[TARGET].astype("Int8")
+    unknown = [loans.index[loans["issue_d"].eq(pd.Timestamp(month))][0]
+               for month in ("2014-02", "2017-03")]
+    loans.loc[unknown, TARGET] = pd.NA
+    samples = final_split(loans.assign(source_row=loans.index), ("2013-07", "2016-12"))
+
+    assert not samples["source_row"].isin(unknown).any()
+    assert samples[TARGET].dtype == np.dtype("int8")
+    assert set(samples["sample"]) == {"train", "test", "oot"}

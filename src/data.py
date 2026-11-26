@@ -19,6 +19,7 @@ RAW_PATH = PROJECT_ROOT / "data" / "raw" / "accepted_2007_to_2018Q4.csv"
 INTERIM_PATH = PROJECT_ROOT / "data" / "interim" / "loans_36m.parquet"
 
 TARGET = "target"  # 12-month default: the model target
+TARGET_UNKNOWN_REASON = "target_unknown_reason"
 TARGET_LIFETIME = "target_lifetime"  # default over the full term: kept for comparison only
 
 HORIZON_MONTHS = 12  # performance window
@@ -29,7 +30,6 @@ BUFFER_MONTHS = 3  # extra months after the window before a loan is used
 BAD_STATUSES = [
     "Charged Off",
     "Default",
-    "Late (31-120 days)",
     "Does not meet the credit policy. Status:Charged Off",
 ]
 GOOD_STATUSES = [
@@ -38,6 +38,8 @@ GOOD_STATUSES = [
 ]
 # Loans with no final outcome yet. They get a 12-month target, but no lifetime target.
 OPEN_STATUSES = ["Current", "In Grace Period", "Late (16-30 days)"]
+LATE_STATUS = "Late (31-120 days)"
+LATE_POLICIES = ("unknown", "default", "nondefault")
 
 DEV_YEARS = (2010, 2017)  # inclusive; 2017 is the out-of-time year
 
@@ -89,10 +91,15 @@ def months_paid(df: pd.DataFrame) -> pd.Series:
     """Number of full instalments covered by principal and interest received.
 
     Late fees and post charge-off recoveries are not counted, so they do not
-    push the default month later.
+    push the default month later. Invalid payment inputs return a missing month.
     """
-    paid = df["total_rec_prncp"].fillna(0) + df["total_rec_int"].fillna(0)
-    return np.floor(paid / df["installment"] + 1e-6)
+    principal = pd.to_numeric(df["total_rec_prncp"], errors="coerce")
+    interest = pd.to_numeric(df["total_rec_int"], errors="coerce")
+    payment = pd.to_numeric(df["installment"], errors="coerce")
+    valid = (np.isfinite(principal) & principal.ge(0) & np.isfinite(interest) & interest.ge(0)
+             & np.isfinite(payment) & payment.gt(0))
+    months = np.floor((principal + interest) / payment.where(valid) + 1e-6)
+    return months.where(np.isfinite(months))
 
 
 def default_month(df: pd.DataFrame, dpd_months: int = DPD_MONTHS) -> pd.Series:
@@ -113,11 +120,42 @@ def add_target_lifetime(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_target_12m(df: pd.DataFrame, horizon: int = HORIZON_MONTHS) -> pd.DataFrame:
-    """12-month target: 1 if a defaulted loan reached 90+ dpd within `horizon` months."""
-    bad = df["loan_status"].isin(BAD_STATUSES)
-    df[TARGET] = (bad & (default_month(df) <= horizon)).astype("int8")
+def add_target_12m(
+    df: pd.DataFrame, horizon: int = HORIZON_MONTHS, *, late_policy: str = "unknown"
+) -> pd.DataFrame:
+    """Set a nullable 12-month proxy and record why a row cannot be labelled."""
+    if late_policy not in LATE_POLICIES:
+        raise ValueError(f"late_policy must be one of {LATE_POLICIES}")
+
+    status = df["loan_status"]
+    good_or_open = status.isin([*GOOD_STATUSES, *OPEN_STATUSES])
+    bad = status.isin(BAD_STATUSES)
+    late = status.isin([LATE_STATUS])
+    month = default_month(df)
+    valid_timing = month.notna()
+
+    target = pd.Series(pd.NA, index=df.index, dtype="Int8")
+    target.loc[good_or_open] = 0
+    inferred = bad & valid_timing
+    if late_policy == "default":
+        inferred |= late & valid_timing
+    elif late_policy == "nondefault":
+        target.loc[late & valid_timing] = 0
+    target.loc[inferred] = month.loc[inferred].le(horizon).astype("int8")
+
+    reason = pd.Series(pd.NA, index=df.index, dtype="string")
+    reason.loc[~(good_or_open | bad | late)] = "unknown_status"
+    reason.loc[(bad | late) & ~valid_timing] = "invalid_payment_data"
+    if late_policy == "unknown":
+        reason.loc[late & valid_timing] = "ambiguous_late_status"
+    df[TARGET] = target
+    df[TARGET_UNKNOWN_REASON] = reason
     return df
+
+
+def labelled_loans(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep known outcomes and use the numeric dtype expected by model libraries."""
+    return df.loc[df[TARGET].notna()].astype({TARGET: "int8"})
 
 
 def observed_long_enough(df: pd.DataFrame, snapshot: pd.Timestamp,
@@ -128,7 +166,7 @@ def observed_long_enough(df: pd.DataFrame, snapshot: pd.Timestamp,
 
 def make_modelling_base(df: pd.DataFrame, years=DEV_YEARS, horizon: int = HORIZON_MONTHS,
                         buffer: int = BUFFER_MONTHS) -> pd.DataFrame:
-    """Loans issued in `years` with the full performance window observed, plus both targets."""
+    """Build both targets on mature loans, keeping unresolved labels for audit."""
     snapshot = snapshot_date(df)  # taken from all loans, before any filtering
     df = df[df["issue_year"].between(*years)].copy()
     df = df[observed_long_enough(df, snapshot, horizon, buffer)].copy()
@@ -148,7 +186,7 @@ def vintage_table(df: pd.DataFrame) -> pd.DataFrame:
         d.groupby("issue_year")
         .agg(
             loans=("loan_status", "size"),
-            open_share=("loan_status", lambda s: s.isin(OPEN_STATUSES).mean()),
+            open_share=("loan_status", lambda s: s.isin([*OPEN_STATUSES, LATE_STATUS]).mean()),
             dr_lifetime=(TARGET_LIFETIME, "mean"),
             dr_12m=(TARGET, "mean"),
         )

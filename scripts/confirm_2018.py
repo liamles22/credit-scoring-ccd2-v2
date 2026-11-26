@@ -10,7 +10,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-from src.data import PROJECT_ROOT, TARGET, load_interim, make_modelling_base
+from src.data import PROJECT_ROOT, TARGET, labelled_loans, load_interim, make_modelling_base
 from src.metrics import gini, hosmer_lemeshow
 from src.scoring import Models
 from src.split import select_scope
@@ -25,7 +25,9 @@ def main():
         raise SystemExit("confirm_2018.csv exists: this check runs once")
     cohort = select_scope(make_modelling_base(load_interim(), years=(2018, 2018), buffer=1))
     assert cohort["issue_d"].dt.strftime("%Y-%m").isin(["2018-01", "2018-02"]).all()
-    print(f"Cohort: {len(cohort):,} loans", flush=True)
+    excluded = int(cohort[TARGET].isna().sum())
+    cohort = labelled_loans(cohort)
+    print(f"Cohort: {len(cohort):,} labelled loans ({excluded:,} unresolved)", flush=True)
     cohort["credit_hist_months"] = ((cohort["issue_d"].dt.year - cohort["earliest_cr_line"].dt.year) * 12
                                     + cohort["issue_d"].dt.month - cohort["earliest_cr_line"].dt.month)
     models = Models()
