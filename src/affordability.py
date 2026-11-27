@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 
 
+DEFAULT_MAX_PD = 0.08
+
+
 @dataclass(frozen=True)
 class Scenario:
     name: str
@@ -76,3 +79,13 @@ def summarize(frame: pd.DataFrame, scenario: Scenario, max_pd: float) -> pd.Data
                      "observed_defaults": int(target[observed].sum()),
                      "default_rate": target[observed].mean()})
     return pd.DataFrame(rows)
+
+
+def summarize_scenarios(frame: pd.DataFrame, max_pd: float = DEFAULT_MAX_PD) -> pd.DataFrame:
+    """Compare the base scenario and the standard income and expense shocks."""
+    scenarios = [
+        Scenario("base", 0.75, 0.55),
+        Scenario("income_down_20pct", 0.75, 0.55, income_shock=0.20),
+        Scenario("expenses_up_20pct", 0.75, 0.55, expense_shock=0.20),
+    ]
+    return pd.concat([summarize(frame, scenario, max_pd) for scenario in scenarios], ignore_index=True)

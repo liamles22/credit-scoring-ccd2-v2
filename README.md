@@ -11,6 +11,23 @@ reviewed in the style of a bank's model validation** (same author, so independen
 an interpretable scorecard against gradient-boosting challengers, and an out-of-time
 test on 2017 loans ending in findings and a verdict.
 
+## Quickstart with synthetic loans
+
+Set up the environment, then run the quickstart from the repository root. [Environment setup](#environment)
+
+```bash
+python -m scripts.quickstart
+```
+
+The demo generates 2,000 seeded synthetic loans, builds features, fits and reloads a
+LightGBM model, and scores a 400-loan holdout. It runs three affordability scenarios
+on the predictions. No Lending Club data or pretrained models are required.
+[Affordability scenarios](docs/affordability_scenarios.md)
+
+The command writes `synthetic_loans.csv`, `lightgbm.txt`, `predictions.csv`, and
+`affordability.csv` to `demo_output/`. Use `--output-dir` to choose another directory.
+GitHub Actions runs the same command. The synthetic output illustrates the workflow.
+
 ## Key results
 
 Out-of-time year 2017, 296,484 loans never used in development:

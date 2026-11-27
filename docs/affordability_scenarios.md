@@ -16,6 +16,12 @@ The output reports observed defaults, missing outcomes and outcome coverage for 
 
 Only funded applicants have outcomes. Results cannot establish what would have happened to rejected applicants, prove causal effects or measure population-level approval. Data are US historical loans and cannot establish performance for EU consumers or BNPL. The predefined stress values do not represent estimated real-world probabilities. The scenario does not generate income paths or a probability of financial distress.
 
+## Synthetic example
+
+Run `python -m scripts.quickstart` from the repository root to generate a synthetic
+scored cohort and an example summary. See `demo_output/predictions.csv` for the inputs
+to the scenarios and `demo_output/affordability.csv` for the policy comparison.
+
 ## Run
 
 ```bash
