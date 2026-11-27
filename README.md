@@ -22,6 +22,12 @@ Out-of-time year 2017, 296,484 loans never used in development:
 | WoE logistic scorecard | 0.340 | −0.071 | 1.19 | Not approved as primary score |
 | Lending Club sub-grade (benchmark) | 0.411 | — | — | — |
 
+**Final recommendation.** Use monotone LightGBM only for conditional risk ranking alongside
+Lending Club sub-grade. On January–February 2018 loans, recalibration moved observed /
+predicted defaults from **0.96 to 0.94**, farther from one even though the result stayed
+inside the 0.90–1.10 band. The absolute PD level remains an open finding.
+[Validation report](reports/validation_report.md#7-remediation)
+
 ![Model comparison: Gini on test and on out-of-time 2017](reports/figures/05_discrimination.png)
 
 "Partly monotone" means constraints on 21 of 78 features. Target: default within 12 months, not over
@@ -214,7 +220,7 @@ model still **adds** information to the grade: combined with it, LightGBM lifts 
 
 Ranking holds on new borrowers (Gini drop test → OOT ≤ 1.8 pp, score PSI ≤ 0.03), but PD
 is under-predicted (issue-year default rates: 3.6% in 2015, 4.4% in 2016, 4.1% in 2017). This fits
-models fitted mostly on lower-risk years, but the cause is unproven: recalibration is required before any PD use.
+models fitted mostly on lower-risk years. The cause remains unproven, and absolute PD use requires further calibration evidence.
 13 findings (2 High, 8 Medium, 3 Low) with evidence and recommendations are in
 `reports/tables/05_findings.csv`, together with a monitoring plan in notebook 05.
 

@@ -42,7 +42,9 @@ recommendation, not that any committee approved a model.
 - **A small 2018 check gives a borderline result on ranking.** On 42,162 loans from January and
   February 2018, LightGBM monotone scored Gini 0.450 against 0.423 for the sub-grade. It passed the
   pre-set rule, but the lower interval bound of +0.0008 is close enough to zero that bootstrap noise
-  alone could change the verdict. Recalibrated PD stayed in the 0.9–1.1 band at 0.94 (section 5.8).
+  alone could change the verdict. LightGBM's observed / predicted ratio moved from 0.96 to
+  0.94 after recalibration. It remained inside the 0.90–1.10 band and moved farther from one
+  (section 7).
 - **Boosting's calibration lead comes from a period signal.** Without the 2016 fields its OOT level
   falls to the scorecard's 1.19, and one flag showing they are available restores 97% of the lead
   (section 5.8). It is not evidence of better borrower-level calibration. Its ranking lead over the
@@ -52,7 +54,9 @@ recommendation, not that any committee approved a model.
 ## 2. Scope and intended use
 
 **In scope:** ranking applicants for unsecured 36-month consumer loans by risk of default within
-12 months, and a 12-month PD after recalibration. Loans defaulting later are labelled good.
+12 months. The study also evaluates 12-month PD calibration as a research outcome. The champion's
+conditional recommendation covers ranking alongside the existing grade. Loans defaulting later
+are labelled good for the 12-month target.
 
 **Out of scope:** 60-month loans, joint applications, regulatory capital, stress testing,
 lifetime expected credit loss, and any population unlike funded Lending Club borrowers.
@@ -359,8 +363,14 @@ Recalibration was fitted only on 2016 test loans and re-tested on OOT. Gini is u
 
 A shift fitted on all of 2013–2016 test leaves the scorecard at 1.19, so the most recent cohort
 matters. The notebook-preferred method per model was picked after seeing these OOT results (F11),
-so both methods are shown. The later 2018 check (section 5.8) supports the scorecard's method but not LightGBM's: its shift moved PD
-further from observed.
+so both methods are shown. On January–February 2018 loans, the scorecard's observed / predicted
+ratio improved from 1.17 to 0.98 and CatBoost monotone's improved from 0.89 to 0.92. LightGBM
+monotone moved from 0.96 to 0.94, farther from one despite staying within the 0.90–1.10 band.
+Hosmer–Lemeshow rejected all three recalibrated models on this cohort (Appendix A.2).
+
+F3 and F4 remain open. LightGBM monotone stays the **conditional champion for ranking only,
+alongside Lending Club sub-grade**. CatBoost monotone stays a challenger. Use of either model's
+absolute PDs requires further calibration evidence.
 
 ## 8. Findings
 
@@ -387,9 +397,9 @@ Full evidence: [`tables/05_findings.csv`](tables/05_findings.csv).
 
 ## 9. Conditions and monitoring
 
-**Conditions for the champion:** apply and document recalibration; resolve F6; complete a
-fair-lending analysis (F7); obtain a truly independent review (F10); confirm on an untouched
-matured cohort (F11).
+**Conditions for the ranking recommendation.** Resolve F6, complete a fair-lending analysis
+(F7), obtain an independent review (F10), and confirm performance on an untouched matured
+cohort (F11). Use of absolute PDs also requires resolution of the calibration finding (F3).
 
 | Metric | Frequency | Amber | Red |
 |---|---|---|---|
@@ -409,7 +419,7 @@ proposals and were set after seeing results (F11).
 |---|---|
 | **Task** | Binary classification: 90+ days past due within 12 months of issue, among all loans including early exits; not lifetime default |
 | **Intended use** | Ranking individual 36-month consumer loan applicants by risk of default within 12 months, alongside the existing grade; not lifetime risk |
-| **Not intended for** | Fully automated decisions, capital, stress testing, other products or populations |
+| **Not intended for** | Absolute PD use, fully automated decisions, capital, stress testing, other products or populations |
 | **Algorithm** | LightGBM, partly monotone: constraints on 21 of 78 features |
 | **Inputs** | 78 application and bureau fields known at origination; no state or ZIP code |
 | **Training data** | 592,616 loans issued 2013-07 to 2016-12; 65,847 for early stopping and tuning |
