@@ -300,6 +300,9 @@ conda activate ml
 После ноутбука 02 запусти [бэктест на даты принятия решений](reports/validation_report.md#59-deployment-date-backtest)
 командой `python -m scripts.as_of_backtest`.
 
+После ноутбука 02 запусти [парное сравнение по зрелости меток](reports/validation_report.md#511-paired-maturity-comparison)
+командой `python -m scripts.paired_maturity_backtest`.
+
 Тесты также запускаются в GitHub Actions.
 
 ## Тесты

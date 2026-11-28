@@ -64,22 +64,27 @@ def final_split(df: pd.DataFrame, train_window, test_share: float = TEST_SHARE,
     return out[out["sample"].notna()].reset_index(drop=True)
 
 
-def as_of_masks(df: pd.DataFrame, as_of: pd.Timestamp) -> dict[str, pd.Series]:
-    """Partition a backtest at a month start using only mature development labels.
-
-    The latest three eligible issue months are for calibration, the previous
-    three are for early stopping, and all earlier eligible months are for fit.
-    Evaluation covers three issue months starting at the deployment date.
-    """
-    as_of = pd.Timestamp(as_of)
-    issued = df["issue_d"]
-    latest_mature_issue = as_of - pd.DateOffset(months=HORIZON_MONTHS + BUFFER_MONTHS)
-    calibration_start = latest_mature_issue - pd.DateOffset(months=2)
-    stop_start = calibration_start - pd.DateOffset(months=3)
-    mature = observed_long_enough(df, as_of)
+def development_masks(df: pd.DataFrame, last_issue_month: pd.Timestamp) -> dict[str, pd.Series]:
+    """Assign the last three issue months to calibration and the preceding three to early stopping."""
+    issued = df["issue_d"].dt.to_period("M")
+    last = pd.Period(last_issue_month, freq="M")
+    calibration_start = last - 2
+    stop_start = calibration_start - 3
     return {
-        "fit": mature & issued.lt(stop_start),
-        "early_stop": mature & issued.ge(stop_start) & issued.lt(calibration_start),
-        "calibration": mature & issued.ge(calibration_start),
+        "fit": issued.lt(stop_start),
+        "early_stop": issued.ge(stop_start) & issued.lt(calibration_start),
+        "calibration": issued.between(calibration_start, last),
+    }
+
+
+def as_of_masks(df: pd.DataFrame, as_of: pd.Timestamp) -> dict[str, pd.Series]:
+    """Partition a backtest at a month start using only mature development labels."""
+    as_of = pd.Timestamp(as_of)
+    latest_mature_issue = as_of - pd.DateOffset(months=HORIZON_MONTHS + BUFFER_MONTHS)
+    issued = df["issue_d"]
+    mature = observed_long_enough(df, as_of)
+    development = development_masks(df, latest_mature_issue)
+    return {
+        **{name: mask & mature for name, mask in development.items()},
         "evaluation": issued.ge(as_of) & issued.lt(as_of + pd.DateOffset(months=3)),
     }

@@ -299,6 +299,9 @@ Run the pipeline to measure the effect on the reported OOT results.
 Run the [2017 deployment-date backtest](reports/validation_report.md#59-deployment-date-backtest) after notebook 02
 with `python -m scripts.as_of_backtest`.
 
+Run the [paired maturity comparison](reports/validation_report.md#511-paired-maturity-comparison)
+with `python -m scripts.paired_maturity_backtest` after notebook 02.
+
 The tests also run on GitHub Actions.
 
 ## Tests

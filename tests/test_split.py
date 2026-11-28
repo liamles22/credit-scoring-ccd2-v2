@@ -4,7 +4,9 @@ import pandas as pd
 import pytest
 
 from src.data import TARGET
-from src.split import OOT, as_of_masks, final_split, issued_between, select_scope, shift_to_end
+from src.split import (
+    OOT, as_of_masks, development_masks, final_split, issued_between, select_scope, shift_to_end,
+)
 
 
 def monthly_loans(start="2012-01", end="2018-06", per_month=50, seed=0):
@@ -90,3 +92,24 @@ def test_final_split_uses_only_labelled_loans_including_oot():
     assert not samples["source_row"].isin(unknown).any()
     assert samples[TARGET].dtype == np.dtype("int8")
     assert set(samples["sample"]) == {"train", "test", "oot"}
+
+
+def test_retrospective_development_ends_before_2017_evaluation():
+    loans = monthly_loans(start="2015-01", end="2017-12", per_month=1)
+    retrospective = development_masks(loans, pd.Timestamp("2016-12"))
+    as_of = as_of_masks(loans, pd.Timestamp("2017-01"))
+    included = pd.DataFrame(retrospective).any(axis=1)
+
+    assert loans.loc[retrospective["fit"], "issue_d"].max() == pd.Timestamp("2016-06")
+    assert loans.loc[retrospective["early_stop"], "issue_d"].max() == pd.Timestamp("2016-09")
+    assert loans.loc[retrospective["calibration"], "issue_d"].max() == pd.Timestamp("2016-12")
+    assert not (included & as_of["evaluation"]).any()
+    assert (included & ~pd.DataFrame(as_of).any(axis=1)).any()
+
+
+def test_as_of_checks_maturity_by_day_when_dates_have_daily_precision():
+    loans = pd.DataFrame({"issue_d": pd.to_datetime(["2015-10-01", "2015-10-02"])})
+
+    masks = as_of_masks(loans, pd.Timestamp("2017-01-01"))
+
+    assert masks["calibration"].tolist() == [True, False]

@@ -24,8 +24,8 @@ def binary_target(part: pd.DataFrame, name: str, as_of: pd.Timestamp) -> pd.Seri
     return y
 
 
-def run_fold(data: pd.DataFrame, as_of: pd.Timestamp, features: list) -> dict:
-    masks = as_of_masks(data, as_of)
+def fit_model(data: pd.DataFrame, masks: dict, as_of: pd.Timestamp, features: list):
+    """Fit LightGBM and the intercept shift on their respective development cohorts."""
     fit = data.loc[masks["fit"], [*features, TARGET]]
     stop = data.loc[masks["early_stop"], [*features, TARGET]]
     cal = data.loc[masks["calibration"], [*features, TARGET]]
@@ -33,7 +33,7 @@ def run_fold(data: pd.DataFrame, as_of: pd.Timestamp, features: list) -> dict:
     y_stop = binary_target(stop, "early stopping", as_of)
     y_cal = binary_target(cal, "calibration", as_of)
 
-    levels = fit_category_levels(fit, CATEGORICAL)
+    levels = fit_category_levels(fit, [column for column in CATEGORICAL if column in features])
     model = lgb.LGBMClassifier(
         n_estimators=1500, learning_rate=0.05, num_leaves=31, min_child_samples=100,
         metric="auc", random_state=SEED, n_jobs=8, verbosity=-1,
@@ -46,20 +46,31 @@ def run_fold(data: pd.DataFrame, as_of: pd.Timestamp, features: list) -> dict:
     raw_cal = model.predict_proba(lightgbm_frame(cal, features, levels))[:, 1]
     calibrator = InterceptShift().fit(raw_cal, y_cal)
 
-    evaluation = data.loc[masks["evaluation"], [*features, TARGET, "sub_grade"]]
+    return model, calibrator, levels
+
+
+def predict_model(fitted, evaluation: pd.DataFrame, features: list):
+    model, calibrator, levels = fitted
     raw = model.predict_proba(lightgbm_frame(evaluation, features, levels))[:, 1]
-    calibrated = calibrator.transform(raw)
+    return raw, calibrator.transform(raw)
+
+
+def run_fold(data: pd.DataFrame, as_of: pd.Timestamp, features: list) -> dict:
+    masks = as_of_masks(data, as_of)
+    fitted = fit_model(data, masks, as_of, features)
+    evaluation = data.loc[masks["evaluation"], [*features, TARGET, "sub_grade"]]
+    raw, calibrated = predict_model(fitted, evaluation, features)
     y = binary_target(evaluation, "evaluation", as_of)
     benchmark = evaluation["sub_grade"].rank(method="dense")
     raw_gini, benchmark_gini = gini(y, raw), gini(y, benchmark)
 
     return {
         "as_of_date": as_of.date(),
-        "fit_loans": len(fit),
+        "fit_loans": int(masks["fit"].sum()),
         "fit_last_issue_month": data.loc[masks["fit"], "issue_d"].max().strftime("%Y-%m"),
-        "early_stop_loans": len(stop),
+        "early_stop_loans": int(masks["early_stop"].sum()),
         "early_stop_last_issue_month": data.loc[masks["early_stop"], "issue_d"].max().strftime("%Y-%m"),
-        "calibration_loans": len(cal),
+        "calibration_loans": int(masks["calibration"].sum()),
         "calibration_last_issue_month": data.loc[masks["calibration"], "issue_d"].max().strftime("%Y-%m"),
         "evaluation_loans": len(evaluation),
         "evaluation_defaults": int(y.sum()),

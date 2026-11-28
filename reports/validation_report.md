@@ -335,6 +335,42 @@ The first three quarters remain below sub-grade with any policy. The tiny Q4 lea
 is a point estimate on a changed evaluation sample. The [monthly audit](tables/target_label_coverage.csv)
 and [scenario results](tables/target_late_sensitivity.csv) include the underlying counts and metrics.
 
+### 5.11 Paired maturity comparison
+
+Both arms use the fixed LightGBM specification from section 5.9, including the same features,
+training parameters, early-stopping rule and intercept-shift method. Both score the same
+labelled loans in each 2017 quarter using the default target policy from section 5.10.
+
+The retrospective arm uses the full development window through December 2016. It is fitted
+once and uses outcomes reconstructed from the later snapshot. The as-of arm has the same
+development start month, but its latest eligible issue month is set at each quarter start
+using the 12-month horizon and three-month buffer. In both arms, the last three eligible issue
+months are for calibration and the three before them are for early stopping. This comparison
+captures the joint effect of the maturity rule on the amount and recency of development data.
+
+The 95% intervals use 1,000 paired bootstrap draws within each quarter, stratified by the
+observed default flag. Each draw uses the same sampled loans for the two models and sub-grade.
+The intervals describe evaluation-sample uncertainty conditional on the fitted scores, and
+the 2017 cohorts were studied previously.
+
+Run `python -m scripts.paired_maturity_backtest` after notebook 02. The default copy is written
+under `data/processed/`. The [published results](tables/paired_maturity_backtest_2017.csv)
+include both model scores, the benchmark and confidence intervals for all three comparisons.
+
+| 2017 quarter | Loans | As-of Gini | Retrospective Gini | Sub-grade Gini | As-of minus retrospective (95% CI) | As-of minus sub-grade (95% CI) |
+|---|---:|---:|---:|---:|---:|---:|
+| Q1 | 68,836 | 0.3798 | 0.4160 | 0.4226 | -0.0363 [-0.0462, -0.0261] | -0.0428 [-0.0627, -0.0263] |
+| Q2 | 72,261 | 0.3849 | 0.4203 | 0.4071 | -0.0354 [-0.0433, -0.0262] | -0.0222 [-0.0393, -0.0054] |
+| Q3 | 79,157 | 0.3929 | 0.4238 | 0.4134 | -0.0309 [-0.0392, -0.0218] | -0.0205 [-0.0377, -0.0031] |
+| Q4 | 71,574 | 0.4177 | 0.4308 | 0.4172 | -0.0131 [-0.0206, -0.0061] | +0.0005 [-0.0200, +0.0200] |
+
+Across 291,828 labelled loans, maturity gating lowered Gini relative to the same LightGBM
+specification in each quarter. The estimated gap narrowed from 0.0363 in Q1 to 0.0131 in Q4.
+Against sub-grade, the as-of arm is behind in Q1–Q3. Its Q4 point estimate of +0.0005 has an
+interval spanning zero. The retrospective arm's intervals against sub-grade also span zero
+in all four quarters. The experiment measures how the maturity rule affects this fixed
+specification. The historical champion used a different configuration.
+
 ## 6. Success criteria
 
 | Criterion | Result | Status |
